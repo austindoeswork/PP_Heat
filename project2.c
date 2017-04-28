@@ -87,7 +87,7 @@ nodes after TIME_STEPS */
       printf("Grid size: X= %d Y= %d Time steps= %d\n",NXPROB,NYPROB,TIME_STEPS);
       printf("Initializing grid and writing initial.dat file...\n");
       inidat(NXPROB, NYPROB, u);
-      prtdat(NXPROB, NYPROB, u, "initial.dat");
+      prtdat(NXPROB, NYPROB, u, "output/initial.dat");
       
       /* Distribute work to workers. Must first figure out how many rows to
 	 send and what to do with extra rows. */
@@ -148,7 +148,7 @@ nodes after TIME_STEPS */
 	}
       
       /* Write final output*/
-      prtdat(NXPROB, NYPROB, &u[0][0][0], "final.dat");
+      prtdat(NXPROB, NYPROB, &u[0][0][0], "output/final.dat");
       
     } /* End of master code */
   
