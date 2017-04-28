@@ -18,10 +18,15 @@
 #define TICK 1 //length of time for a tick
 
 /*********************************************************/
-/* Global Vaiable Definitions ****************************/
+/* Global Variable Definitions ***************************/
 /*********************************************************/
 
-float* universe, universeNext; //X,Y,Z
+typedef struct {
+    float currTemp;
+    float thermCond;
+} object;
+
+object* universe, universeNext; //X,Y,Z
 
 int worldsize, myrank, aboveRank, belowRank;
 int numTicks;
@@ -32,12 +37,12 @@ int dimX, dimY, dimZ; //Dimensions of board
 /*********************************************************/
 void printUniverse();
 
-float* emptyUniverse(){
-    return calloc((size_t)dimX*dimY*dimZ, sizeof(float));
+object* emptyUniverse(){
+    return calloc((size_t)dimX*dimY*dimZ, sizeof(object));
 }
 
 void initializeUniverse(char* filename){
-    universe = (float*) calloc((size_t)dimX*dimY*dimZ, sizeof(float));
+    universe = (object*) calloc((size_t)dimX*dimY*dimZ, sizeof(object));
 
     //TODO: write the read file to read in objects into grid
 }
