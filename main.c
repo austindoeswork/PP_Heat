@@ -128,6 +128,10 @@ int main(int argc, char* argv[]){
 
     //read in the initial universe state
     initializeUniverse(iniFilename);
+    /*universe = emptyUniverse();
+    for(int i = 0; i < dimX*dimY*(dimZ/worldsize+2); i++){
+
+    }*/
 
     //Prep MPI_time stuff
     double start_time, total_time;
