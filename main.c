@@ -10,6 +10,8 @@
 #include<stdlib.h>
 #include<math.h>
 #include<mpi.h>
+#include<string.h>
+#include <unistd.h>
 
 /*********************************************************/
 /* Define Macros *****************************************/
@@ -39,8 +41,29 @@ int dimX, dimY, dimZ; //Dimensions of board
 /*********************************************************/
 /* Function Definitions **********************************/
 /*********************************************************/
-void printUniverse(){
-    //TODO: Write file out to print out current universe
+void printUniverse(int tick){
+    FILE *fp;
+    fp = fopen("output.txt", "w+");
+    fprintf(fp, "%d,%d,%d,%d\n", dimX,dimY,dimZ,tick);
+    for (int z = 0; z < dimZ; z++) {
+        for (int y = 0; y < dimY; y++) {
+            for (int x = 0; x < dimX; x++) {
+                if (x == dimX - 1) {fprintf(fp, "%f", (universe+x+y+z)->currTemp);}
+                else {fprintf(fp, "%f,", (universe+x+y+z)->currTemp);}
+            }
+            fprintf(fp, "\n");
+        }
+    }
+    fprintf(fp, "\n");
+    for (int z = 0; z < dimZ; z++) {
+        for (int y = 0; y < dimY; y++) {
+            for (int x = 0; x < dimX; x++) {
+                if (x == dimX - 1) {fprintf(fp, "%f", (universe+x+y+z)->thermCond);}
+                else {fprintf(fp, "%f,", (universe+x+y+z)->thermCond);}
+            }
+            fprintf(fp, "\n");
+        }
+    }
 }
 
 //allocates memory for next tick of universe
@@ -51,11 +74,49 @@ object* emptyUniverse(){
 //initializes universe to ini file info
 void initializeUniverse(char* filename){
     universe = (object*) calloc((size_t)dimX*dimY*(dimZ+2), sizeof(object));
+    FILE *file;
+    file = fopen(filename, "r");
+    if ( file != NULL )
+    {
+        char line[1024]; /* or other suitable maximum line size */
+        while (fgets(line, sizeof line, file) != NULL) /* read a line */
+        {
+            if (line[0]=='/') {
+                continue;
+            }
+            int x1, y1, z1, x2, y2, z2;
+            float curTemp, thermCond;
+            char* token = strtok(line, " ");
+            x1 = atoi(token);
+            token = strtok(NULL, " ");
+            y1 = atoi(token);
+            token = strtok(NULL, " ");
+            z1 = atoi(token);
+            token = strtok(NULL, " ");
+            x2 = atoi(token);
+            token = strtok(NULL, " ");
+            y2 = atoi(token);
+            token = strtok(NULL, " ");
+            z2 = atoi(token);
+            token = strtok(NULL, " ");
+            curTemp = atof(token);
+            token = strtok(NULL, " ");
+            thermCond = atof(token);
 
-    //TODO: write the read file to read in objects into grid
+            for (int x = x1; x < x2; x++) {
+                for (int y = y1; y < y2; y++) {
+                    for (int z = z1; z < z2; z++) {
+                        (universe+x+y+z)->currTemp = curTemp;
+                        (universe+x+y+z)->thermCond = thermCond;
+                    }
+                }
+            }
+        }
+        fclose(file);
+    }
 }
 
-//completes a tick on the universe
+// completes a tick on the universe
 void tick(){
     universeNext = emptyUniverse();
 
@@ -106,7 +167,7 @@ void tick(){
 /* Function Main *****************************************/
 /*********************************************************/
 int main(int argc, char* argv[]){
-    //start MPI
+    // start MPI
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &worldsize);
     MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
@@ -141,7 +202,7 @@ int main(int argc, char* argv[]){
     //Run simulation
     for(int tickCount = 0; tickCount < numTicks; tickCount++){
         tick();
-        if(tickCount%printOnTick == 0) printUniverse();
+        if(tickCount%printOnTick == 0) printUniverse(tickCount);
     }
 
     //Finish time and output info
