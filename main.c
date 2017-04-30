@@ -41,15 +41,29 @@ int dimX, dimY, dimZ; //Dimensions of board
 /*********************************************************/
 /* Function Definitions **********************************/
 /*********************************************************/
-void printUniverse(){
-    for(int x = 0; x < dimX; x++){
-        for(int y = 0; y < dimY; y++){
-            for(int z = 1; z <= dimZ/worldsize; z++){
-                printf("%d %d %d %f %f", x, y, x, universe->currTemp, universe->thermCond);
+void printUniverse(int tick){
+    FILE *fp;
+    fp = fopen("output.txt", "w+");
+    fprintf(fp, "%d,%d,%d,%d\n", dimX,dimY,dimZ,tick);
+    for (int z = 0; z < dimZ; z++) {
+        for (int y = 0; y < dimY; y++) {
+            for (int x = 0; x < dimX; x++) {
+                if (x == dimX - 1) {fprintf(fp, "%f", (universe+x+y+z)->currTemp);}
+                else {fprintf(fp, "%f,", (universe+x+y+z)->currTemp);}
             }
+            fprintf(fp, "\n");
         }
     }
-    //TODO: Write file out to print out current universe
+    fprintf(fp, "\n");
+    for (int z = 0; z < dimZ; z++) {
+        for (int y = 0; y < dimY; y++) {
+            for (int x = 0; x < dimX; x++) {
+                if (x == dimX - 1) {fprintf(fp, "%f", (universe+x+y+z)->thermCond);}
+                else {fprintf(fp, "%f,", (universe+x+y+z)->thermCond);}
+            }
+            fprintf(fp, "\n");
+        }
+    }
 }
 
 //allocates memory for next tick of universe
@@ -60,7 +74,6 @@ object* emptyUniverse(){
 //initializes universe to ini file info
 void initializeUniverse(char* filename){
     universe = (object*) calloc((size_t)dimX*dimY*(dimZ+2), sizeof(object));
-
     FILE *file;
     file = fopen(filename, "r");
     if ( file != NULL )
@@ -93,11 +106,8 @@ void initializeUniverse(char* filename){
             for (int x = x1; x < x2; x++) {
                 for (int y = y1; y < y2; y++) {
                     for (int z = z1; z < z2; z++) {
-                        object *target;
-
-                        target = universe+x+y+z;
-                        target->currTemp = curTemp;
-                        target->thermCond = thermCond;
+                        (universe+x+y+z)->currTemp = curTemp;
+                        (universe+x+y+z)->thermCond = thermCond;
                     }
                 }
             }
@@ -170,7 +180,7 @@ int main(int argc, char* argv[]){
     dimX = atoi(argv[1]);
     dimY = atoi(argv[2]);
     dimZ = atoi(argv[3]);
-    char* iniFilename = argv[1];
+    char* iniFilename = argv[4];
     numTicks = atoi(argv[5]);
     printOnTick = atoi(argv[6]);
 
@@ -188,7 +198,7 @@ int main(int argc, char* argv[]){
     //Run simulation
     for(int tickCount = 0; tickCount < numTicks; tickCount++){
         tick();
-        if(tickCount%printOnTick == 0) printUniverse();
+        if(tickCount%printOnTick == 0) printUniverse(tickCount);
     }
 
     //Finish time and output info
