@@ -266,5 +266,3 @@ void prtdat(int nx, int ny, float *u1, char *fnam) {
   }
   fclose(fp);
 }
-
-		

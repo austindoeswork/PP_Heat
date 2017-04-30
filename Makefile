@@ -1,2 +1,2 @@
 all: project2.c
-	mpicc project2.c -o project2 -Wall
+	mpicc main.c -o project2 -Wall
