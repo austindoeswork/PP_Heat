@@ -16,6 +16,7 @@
 /*********************************************************/
 
 #define TICK 1 //length of time for a tick
+#define cubeDim 1
 
 /*********************************************************/
 /* Global Variable Definitions ***************************/
@@ -72,7 +73,26 @@ void tick(){
     for(int x = 0; x < dimX; x++){
         for(int y = 0; y < dimY; y++){
             for(int z = 1; z <= dimZ/worldsize; z++){//only as much depth as this rank handles
-                //TODO: Implement heat transfer equation
+                //obtain pointer information
+                object *target, *targetNext, *above, *below, *left, *right, *front, *back;
+                target = universe + (dimX*dimY*z) + (dimX * y) + x;
+                targetNext = universeNext + (dimX*dimY*z) + (dimX * y) + x;
+                above = targetNext - dimX;
+                below = targetNext + dimX;
+                left = targetNext - 1;
+                right = targetNext + 1;
+                front = targetNext - (dimX*dimY);
+                back = targetNext + (dimX*dimY);
+
+                //Calculate next tick
+                targetNext->thermCond = target->thermCond;
+                targetNext->currTemp =
+                          2/((1/target->thermCond)+(1/above->thermCond))*(target->currTemp-above->currTemp)
+                        + 2/((1/target->thermCond)+(1/below->thermCond))*(target->currTemp-below->currTemp)
+                        + 2/((1/target->thermCond)+(1/left->thermCond))*(target->currTemp-left->currTemp)
+                        + 2/((1/target->thermCond)+(1/right->thermCond))*(target->currTemp-right->currTemp)
+                        + 2/((1/target->thermCond)+(1/front->thermCond))*(target->currTemp-front->currTemp)
+                        + 2/((1/target->thermCond)+(1/back->thermCond))*(target->currTemp-back->currTemp);
             }
         }
     }
