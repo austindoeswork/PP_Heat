@@ -93,7 +93,7 @@ void initializeUniverse(char* filename){
     universe = (object*) calloc((size_t)dimX*dimY*(dimZ+2), sizeof(object));
     FILE *file;
     file = fopen(filename, "r");
-    int myZ = myrank * (dimZ/worldsize);
+    int localZStart = myrank * (dimZ/worldsize); //Ex rank 0 starts at Z = 0
     if ( file != NULL )
     {
         char line[1024]; /* or other suitable maximum line size */
@@ -121,14 +121,17 @@ void initializeUniverse(char* filename){
             token = strtok(NULL, " ");
             thermCond = atof(token);
 
-            if ((myZ+dimZ/worldsize) < z2) {
-                z2 = myZ+(dimZ/worldsize);
-            }
+            if(z1 < localZStart) z1 = 0;
+            else z1 = z1 - localZStart;
+            if(z2 > localZStart + dimZ/worldsize - 1) z2 = dimZ/worldsize - 1;
+            else z2 = z2 - localZStart;
 
-            for (int x = x1; x < x2; x++) {
-                for (int y = y1; y < y2; y++) {
-                    for (int z = myZ; z < z2; z++) {
-                        (universe+x+y+z)->currTemp = curTemp;
+
+            for (int x = x1; x <= x2; x++) {
+                for (int y = y1; y <= y2; y++) {
+                    for (int z = z1; z <= z2; z++) {
+                        object *target = universe + (dimX*dimY*(z+1)) + (dimX * y) + x;
+                        target->currTemp = curTemp;
                         //(universe+x+y+z)->thermCond = thermCond;
                     }
                 }
@@ -178,14 +181,8 @@ void tick(int tickNum){
                 if(y != 0) targetNext->currTemp += DIFFU * (above->currTemp - target->currTemp);
                 if(y != dimY-1) targetNext->currTemp += DIFFU * (below->currTemp - target->currTemp);
                 if(!((myrank == 0) && (z==1))) targetNext->currTemp += DIFFU * (front->currTemp - target->currTemp);
-                if(!((myrank == worldsize-1)&&(z != dimZ))) targetNext->currTemp += DIFFU * (back->currTemp - target->currTemp);
-
-                //Calculate next tick
-                //targetNext->thermCond = target->thermCond;
-//                targetNext->currTemp = target->currTemp
-//                        + DIFFU * ((above->currTemp + below->currTemp) - 2 * target->currTemp)
-//                        + DIFFU * ((left->currTemp + right->currTemp) - 2 * target->currTemp)
-//                        + DIFFU * ((front->currTemp + back->currTemp) - 2 * target->currTemp);
+                if(!((myrank == worldsize-1)&&(z != dimZ)))
+                    targetNext->currTemp += DIFFU * (back->currTemp - target->currTemp);
             }
         }
     }
@@ -238,14 +235,14 @@ int main(int argc, char* argv[]){
     sliceSize = dimX*dimY*(dimZ/worldsize);
 
     //read in the initial universe state
-    //initializeUniverse(iniFilename);
+    initializeUniverse(iniFilename);
 
-    universe = emptyUniverse();
-    for(int i = 0; i < dimX*dimY*(dimZ/worldsize+2); i++){
-        (universe+i)->currTemp = 0;
-        //(universe+i)->thermCond = 1;
-    }
-    if(myrank == 1){(universe+13)->currTemp = 50;}
+//    universe = emptyUniverse();
+//    for(int i = 0; i < dimX*dimY*(dimZ/worldsize+2); i++){
+//        (universe+i)->currTemp = 0;
+//        //(universe+i)->thermCond = 1;
+//    }
+//    if(myrank == 1){(universe+13)->currTemp = 50;}
 
     //Prep MPI_time stuff
     double start_time, total_time;
