@@ -28,7 +28,6 @@
 typedef struct {
     double currTemp;
     //double thermCond;
-    double thermCond;
 } object;
 
 object* universe;
@@ -43,6 +42,8 @@ int dimX, dimY, dimZ; //Dimensions of board
 /*********************************************************/
 /* Function Definitions **********************************/
 /*********************************************************/
+void printToConsole(int tick);
+
 void printUniverse(int tick){
     MPI_File fp;
     MPI_File_open(MPI_COMM_WORLD, "output.txt", MPI_MODE_WRONLY | MPI_MODE_CREATE, MPI_INFO_NULL, &fp);
@@ -138,18 +139,22 @@ void initializeUniverse(char* filename){
 }
 
 // completes a tick on the universe
-void tick(){
+void tick(int tickNum){
     universeNext = emptyUniverse();
 
-    MPI_Request sendGhostBelow, sendGhostAbove, receiveGhostBelow, receiveGhostAbove;
-    MPI_Isend(universe+(dimX*dimY), dimX*dimY, MPI_UNSIGNED_SHORT, belowRank, 0, MPI_COMM_WORLD, &sendGhostBelow);
-    MPI_Isend(universe+sliceSize, dimX*dimY, MPI_UNSIGNED_SHORT, aboveRank, 1, MPI_COMM_WORLD, &sendGhostAbove);
+    //printToConsole(tickNum);
 
-    MPI_Irecv(universe+(dimX*dimY+sliceSize), dimX*dimY, MPI_UNSIGNED_SHORT, aboveRank, 0, MPI_COMM_WORLD, &receiveGhostAbove);
-    MPI_Irecv(universe, dimX*dimY, MPI_UNSIGNED_SHORT, belowRank, 1, MPI_COMM_WORLD, &receiveGhostBelow);
+    MPI_Request sendGhostBack, sendGhostFront, receiveGhostBack, receiveGhostFront;
+    MPI_Isend(universe+(dimX*dimY), dimX*dimY, MPI_DOUBLE, belowRank, 0, MPI_COMM_WORLD, &sendGhostBack);
+    MPI_Isend(universe+sliceSize, dimX*dimY, MPI_DOUBLE, aboveRank, 1, MPI_COMM_WORLD, &sendGhostFront);
 
-    MPI_Wait(&receiveGhostAbove, &status);
-    MPI_Wait(&receiveGhostBelow, &status);
+    MPI_Irecv(universe+(dimX*dimY+sliceSize), dimX*dimY, MPI_DOUBLE, belowRank, 1, MPI_COMM_WORLD, &receiveGhostFront);
+    MPI_Irecv(universe, dimX*dimY, MPI_DOUBLE, aboveRank, 0, MPI_COMM_WORLD, &receiveGhostBack);
+
+    MPI_Wait(&receiveGhostFront, &status);
+    MPI_Wait(&receiveGhostBack, &status);
+
+    //printToConsole(tickNum);
 
     //apply tick to universe
     for(int x = 0; x < dimX; x++){
@@ -159,19 +164,28 @@ void tick(){
                 object *target, *targetNext, *above, *below, *left, *right, *front, *back;
                 target = universe + (dimX*dimY*z) + (dimX * y) + x;
                 targetNext = universeNext + (dimX*dimY*z) + (dimX * y) + x;
-                above = targetNext - dimX;
-                below = targetNext + dimX;
-                left = targetNext - 1;
-                right = targetNext + 1;
-                front = targetNext - (dimX*dimY);
-                back = targetNext + (dimX*dimY);
+                above = target - dimX;
+                below = target + dimX;
+                left = target - 1;
+                right = target + 1;
+                front = target - (dimX*dimY);
+                back = target + (dimX*dimY);
+
+                targetNext->currTemp = target->currTemp;
+                //handle edge cases
+                if(x != 0) targetNext->currTemp += DIFFU * (left->currTemp - target->currTemp);
+                if(x != dimX-1) targetNext->currTemp += DIFFU * (right->currTemp - target->currTemp);
+                if(y != 0) targetNext->currTemp += DIFFU * (above->currTemp - target->currTemp);
+                if(y != dimY-1) targetNext->currTemp += DIFFU * (below->currTemp - target->currTemp);
+                if(!((myrank == 0) && (z==1))) targetNext->currTemp += DIFFU * (front->currTemp - target->currTemp);
+                if(!((myrank == worldsize-1)&&(z != dimZ))) targetNext->currTemp += DIFFU * (back->currTemp - target->currTemp);
 
                 //Calculate next tick
                 //targetNext->thermCond = target->thermCond;
-                targetNext->currTemp = target->currTemp
-                        + DIFFU * (above->currTemp + below->currTemp) - 2 * target->currTemp
-                        + DIFFU * (left->currTemp + right->currTemp) - 2 * target->currTemp
-                        + DIFFU * (front->currTemp + back->currTemp) - 2 * target->currTemp;
+//                targetNext->currTemp = target->currTemp
+//                        + DIFFU * ((above->currTemp + below->currTemp) - 2 * target->currTemp)
+//                        + DIFFU * ((left->currTemp + right->currTemp) - 2 * target->currTemp)
+//                        + DIFFU * ((front->currTemp + back->currTemp) - 2 * target->currTemp);
             }
         }
     }
@@ -181,17 +195,22 @@ void tick(){
     universe = universeNext;
 }
 
-void printToConsole(){
-    for(int z = 1; z <= dimZ/worldsize; z++){
-        for(int y = 0; y < dimY; y++){
-            for(int x = 0; x < dimX; x++){
-                object* target = universe + (dimX*dimY*z) + (dimX * y) + x;
-                printf("%lf ", target->currTemp);
+void printToConsole(int tick){
+    MPI_Barrier(MPI_COMM_WORLD);
+    for(int printFromRank = 0; printFromRank < worldsize; printFromRank++) {
+        for (int z = 1; z <= dimZ / worldsize; z++) {
+            for (int y = 0; y < dimY; y++) {
+                for (int x = 0; x < dimX; x++) {
+                    object *target = universe + (dimX * dimY * z) + (dimX * y) + x;
+                    if(myrank == printFromRank) printf("%.2f ", target->currTemp);
+                }
+                if(myrank == printFromRank) printf("\n");
             }
-            printf("\n");
+            if(myrank == printFromRank) printf("         Printed from %d Tick:%d\n", myrank, tick);
         }
-        printf("\n");
+        MPI_Barrier(MPI_COMM_WORLD);
     }
+    if(myrank == 0) printf("------------------------------------\n\n");
 }
 
 /*********************************************************/
@@ -226,9 +245,7 @@ int main(int argc, char* argv[]){
         (universe+i)->currTemp = 0;
         //(universe+i)->thermCond = 1;
     }
-    (universe+15)->currTemp = 50;
-
-    printToConsole();
+    if(myrank == 1){(universe+13)->currTemp = 50;}
 
     //Prep MPI_time stuff
     double start_time, total_time;
@@ -236,9 +253,10 @@ int main(int argc, char* argv[]){
     if(myrank == 0) start_time = MPI_Wtime();
 
     //Run simulation
+    printToConsole(-1);
     for(int tickCount = 0; tickCount < numTicks; tickCount++){
-        tick();
-        if(tickCount%printOnTick == 0) printToConsole();//printUniverse(tickCount);
+        tick(tickCount);
+        if(tickCount%printOnTick == 0) printToConsole(tickCount);//printUniverse(tickCount);
     }
 
     //Finish time and output info
