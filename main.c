@@ -97,8 +97,9 @@ void initializeUniverse(char* filename){
     if ( file != NULL )
     {
         char line[1024]; /* or other suitable maximum line size */
-        while (fgets(line, sizeof line, file) != NULL) /* read a line */
+        while (fgets(line, sizeof(line), file) != NULL) /* read a line */
         {
+            fprintf(stderr, "Loop starts\n");
             if (line[0]=='/') {
                 continue;
             }
@@ -136,6 +137,8 @@ void initializeUniverse(char* filename){
                     }
                 }
             }
+            printToConsole(-1);
+            fprintf(stderr, "Made it");
         }
         fclose(file);
     }
