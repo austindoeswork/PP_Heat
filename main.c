@@ -88,6 +88,25 @@ object* emptyUniverse(){
     return calloc((size_t)dimX*dimY*(dimZ+2), sizeof(object));
 }
 
+void placeObjectInUniverse(int x1, int y1, int z1, int x2, int y2, int z2, double temp){
+    int localZStart = myrank * (dimZ/worldsize); //Ex rank 0 starts at Z = 0
+
+    if(z1 < localZStart) z1 = 0;
+    else z1 = z1 - localZStart;
+    if(z2 > localZStart + dimZ/worldsize - 1) z2 = dimZ/worldsize - 1;
+    else z2 = z2 - localZStart;
+
+    for (int x = x1; x <= x2; x++) {
+        for (int y = y1; y <= y2; y++) {
+            for (int z = z1; z <= z2; z++) {
+                object *target = universe + (dimX*dimY*(z+1)) + (dimX * y) + x;
+                target->currTemp = temp;
+                //                     //(universe+x+y+z)->thermCond = thermCond;
+            }
+        }
+    }
+}
+
 //initializes universe to ini file info
 void initializeUniverse(char* filename){
     universe = (object*) calloc((size_t)dimX*dimY*(dimZ+2), sizeof(object));
@@ -136,7 +155,7 @@ void initializeUniverse(char* filename){
                     }
                 }
             }
-            printToConsole(-1);
+            //printToConsole(-1);
         }
         fclose(file);
     }
@@ -238,7 +257,8 @@ int main(int argc, char* argv[]){
     //read in the initial universe state
     initializeUniverse(iniFilename);
 
-   // universe = emptyUniverse();
+    //universe = emptyUniverse();
+    //placeObjectInUniverse(0, 0, 0, 5000, 5000, 5000);
    // for(int i = 0; i < dimX*dimY*(dimZ/worldsize+2); i++){
    //     (universe+i)->currTemp = 0;
    //  //    (universe+i)->thermCond = 1;
@@ -251,10 +271,10 @@ int main(int argc, char* argv[]){
     if(myrank == 0) start_time = MPI_Wtime();
 
     //Run simulation
-    printToConsole(-1);
+    //printToConsole(-1);
     for(int tickCount = 0; tickCount < numTicks; tickCount++){
         tick(tickCount);
-        if(tickCount%printOnTick == 0) printToConsole(tickCount);//printUniverse(tickCount);
+        //if(tickCount%printOnTick == 0) printToConsole(tickCount);//printUniverse(tickCount);
     }
 
     //Finish time and output info
