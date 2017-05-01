@@ -19,14 +19,15 @@
 
 #define TICK 1 //length of time for a tick
 #define cubeDim 1
+#define DIFFU 0.1
 
 /*********************************************************/
 /* Global Variable Definitions ***************************/
 /*********************************************************/
 
 typedef struct {
-    float currTemp;
-    float thermCond;
+    double currTemp;
+    //double thermCond;
 } object;
 
 object* universe;
@@ -58,8 +59,8 @@ void printUniverse(int tick){
     for (int z = 0; z < dimZ; z++) {
         for (int y = 0; y < dimY; y++) {
             for (int x = 0; x < dimX; x++) {
-                if (x == dimX - 1) {fprintf(fp, "%f", (universe+x+y+z)->thermCond);}
-                else {fprintf(fp, "%f,", (universe+x+y+z)->thermCond);}
+//                if (x == dimX - 1) {fprintf(fp, "%f", (universe+x+y+z)->thermCond);}
+//                else {fprintf(fp, "%f,", (universe+x+y+z)->thermCond);}
             }
             fprintf(fp, "\n");
         }
@@ -85,7 +86,7 @@ void initializeUniverse(char* filename){
                 continue;
             }
             int x1, y1, z1, x2, y2, z2;
-            float curTemp, thermCond;
+            double curTemp, thermCond;
             char* token = strtok(line, " ");
             x1 = atoi(token);
             token = strtok(NULL, " ");
@@ -107,7 +108,7 @@ void initializeUniverse(char* filename){
                 for (int y = y1; y < y2; y++) {
                     for (int z = z1; z < z2; z++) {
                         (universe+x+y+z)->currTemp = curTemp;
-                        (universe+x+y+z)->thermCond = thermCond;
+                        //(universe+x+y+z)->thermCond = thermCond;
                     }
                 }
             }
@@ -146,14 +147,11 @@ void tick(){
                 back = targetNext + (dimX*dimY);
 
                 //Calculate next tick
-                targetNext->thermCond = target->thermCond;
-                targetNext->currTemp =
-                          2/((1/target->thermCond)+(1/above->thermCond))*(target->currTemp-above->currTemp)
-                        + 2/((1/target->thermCond)+(1/below->thermCond))*(target->currTemp-below->currTemp)
-                        + 2/((1/target->thermCond)+(1/left->thermCond))*(target->currTemp-left->currTemp)
-                        + 2/((1/target->thermCond)+(1/right->thermCond))*(target->currTemp-right->currTemp)
-                        + 2/((1/target->thermCond)+(1/front->thermCond))*(target->currTemp-front->currTemp)
-                        + 2/((1/target->thermCond)+(1/back->thermCond))*(target->currTemp-back->currTemp);
+                //targetNext->thermCond = target->thermCond;
+                targetNext->currTemp = target->currTemp
+                        + DIFFU * (above->currTemp + below->currTemp) - 2 * target->currTemp
+                        + DIFFU * (left->currTemp + right->currTemp) - 2 * target->currTemp
+                        + DIFFU * (front->currTemp + back->currTemp) - 2 * target->currTemp;
             }
         }
     }
@@ -161,6 +159,19 @@ void tick(){
     //update universe, free old memory
     free(universe);
     universe = universeNext;
+}
+
+void printToConsole(){
+    for(int z = 1; z <= dimZ/worldsize; z++){
+        for(int y = 0; y < dimY; y++){
+            for(int x = 0; x < dimX; x++){
+                object* target = universe + (dimX*dimY*z) + (dimX * y) + x;
+                printf("%lf ", target->currTemp);
+            }
+            printf("\n");
+        }
+        printf("\n");
+    }
 }
 
 /*********************************************************/
@@ -188,18 +199,16 @@ int main(int argc, char* argv[]){
     sliceSize = dimX*dimY*(dimZ/worldsize);
 
     //read in the initial universe state
-    initializeUniverse(iniFilename);
-    for(int i = 0; i < dimX; i++){
-        for(int j = 0; j < dimY; j++){
-            for(int k = 1; k <= dimZ; k++){
-                printf("%lf ", universe);
-            }
-        }
-    }
-    /*universe = emptyUniverse();
-    for(int i = 0; i < dimX*dimY*(dimZ/worldsize+2); i++){
+    //initializeUniverse(iniFilename);
 
-    }*/
+    universe = emptyUniverse();
+    for(int i = 0; i < dimX*dimY*(dimZ/worldsize+2); i++){
+        (universe+i)->currTemp = 0;
+        //(universe+i)->thermCond = 1;
+    }
+    (universe+15)->currTemp = 50;
+
+    printToConsole();
 
     //Prep MPI_time stuff
     double start_time, total_time;
@@ -209,7 +218,7 @@ int main(int argc, char* argv[]){
     //Run simulation
     for(int tickCount = 0; tickCount < numTicks; tickCount++){
         tick();
-        if(tickCount%printOnTick == 0) printUniverse(tickCount);
+        if(tickCount%printOnTick == 0) printToConsole();//printUniverse(tickCount);
     }
 
     //Finish time and output info

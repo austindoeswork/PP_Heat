@@ -232,10 +232,10 @@ void update(int start, int end, int ny, float *u1, float *u2)
   for (ix = start; ix <= end; ix++)
     for (iy = 1; iy <= ny-2; iy++)
       *(u2+ix*ny+iy) = *(u1+ix*ny+iy) +
-	diffusivity.cx * (*(u1+(ix+1)*ny+iy) +
+	    diffusivity.cx * (*(u1+(ix+1)*ny+iy) +
 		    *(u1+(ix-1)*ny+iy) -
 		    2.0 * *(u1+ix*ny+iy)) +
-	diffusivity.cy * (*(u1+ix*ny+iy+1) +
+	    diffusivity.cy * (*(u1+ix*ny+iy+1) +
 		    *(u1+ix*ny+iy-1) -
 		    2.0 * *(u1+ix*ny+iy));
 }
