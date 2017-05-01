@@ -98,7 +98,7 @@ void placeObjectInUniverse(int x1, int y1, int z1, int x2, int y2, int z2, doubl
 
     for (int x = x1; x <= x2; x++) {
         for (int y = y1; y <= y2; y++) {
-            for (int z = z1; z <= z2; z++) {
+            for (int z = z1; z < z2; z++) {
                 object *target = universe + (dimX*dimY*(z+1)) + (dimX * y) + x;
                 target->currTemp = temp;
                 //                     //(universe+x+y+z)->thermCond = thermCond;
@@ -144,6 +144,9 @@ void initializeUniverse(char* filename){
             else z1 = z1 - localZStart;
             if(z2 > localZStart + dimZ/worldsize - 1) z2 = dimZ/worldsize - 1;
             else z2 = z2 - localZStart;
+
+            if(x2 >= dimX) x2 = dimX - 1;
+            if(y2 >= dimY) y2 = dimY - 1;
 
 
             for (int x = x1; x <= x2; x++) {
@@ -255,9 +258,9 @@ int main(int argc, char* argv[]){
     sliceSize = dimX*dimY*(dimZ/worldsize);
 
     //read in the initial universe state
-    initializeUniverse(iniFilename);
+    //initializeUniverse(iniFilename);
 
-    //universe = emptyUniverse();
+    universe = emptyUniverse();
     //placeObjectInUniverse(0, 0, 0, 5000, 5000, 5000);
    // for(int i = 0; i < dimX*dimY*(dimZ/worldsize+2); i++){
    //     (universe+i)->currTemp = 0;
