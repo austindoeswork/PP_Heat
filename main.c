@@ -132,7 +132,7 @@ void initializeUniverse(char* filename){
                     for (int z = z1; z <= z2; z++) {
                         object *target = universe + (dimX*dimY*(z+1)) + (dimX * y) + x;
                         target->currTemp = curTemp;
-                        //(universe+x+y+z)->thermCond = thermCond;
+    //                     //(universe+x+y+z)->thermCond = thermCond;
                     }
                 }
             }
@@ -237,12 +237,12 @@ int main(int argc, char* argv[]){
     //read in the initial universe state
     initializeUniverse(iniFilename);
 
-//    universe = emptyUniverse();
-//    for(int i = 0; i < dimX*dimY*(dimZ/worldsize+2); i++){
-//        (universe+i)->currTemp = 0;
-//        //(universe+i)->thermCond = 1;
-//    }
-//    if(myrank == 1){(universe+13)->currTemp = 50;}
+   // universe = emptyUniverse();
+   // for(int i = 0; i < dimX*dimY*(dimZ/worldsize+2); i++){
+   //     (universe+i)->currTemp = 0;
+   //  //    (universe+i)->thermCond = 1;
+   // }
+   // if(myrank == 1){(universe+13)->currTemp = 50;}
 
     //Prep MPI_time stuff
     double start_time, total_time;
