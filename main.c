@@ -183,9 +183,9 @@ void tick(int tickNum){
     //printToConsole(tickNum);
 
     //apply tick to universe
-    for(int x = 0; x < dimX; x++){
+    for(int z = 1; z <= dimZ/worldsize; z++){//only as much depth as this rank handles
         for(int y = 0; y < dimY; y++){
-            for(int z = 1; z <= dimZ/worldsize; z++){//only as much depth as this rank handles
+            for(int x = 0; x < dimX; x++){
                 //obtain pointer information
                 object *target, *targetNext, *above, *below, *left, *right, *front, *back;
                 target = universe + (dimX*dimY*z) + (dimX * y) + x;
