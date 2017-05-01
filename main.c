@@ -11,7 +11,7 @@
 #include<math.h>
 #include<mpi.h>
 #include<string.h>
-#include <unistd.h>
+#include<unistd.h>
 
 /*********************************************************/
 /* Define Macros *****************************************/
@@ -25,8 +25,8 @@
 /*********************************************************/
 
 typedef struct {
-    float currTemp;
-    float thermCond;
+    double currTemp;
+    double thermCond;
 } object;
 
 object* universe;
@@ -42,28 +42,44 @@ int dimX, dimY, dimZ; //Dimensions of board
 /* Function Definitions **********************************/
 /*********************************************************/
 void printUniverse(int tick){
-    FILE *fp;
-    fp = fopen("output.txt", "w+");
-    fprintf(fp, "%d,%d,%d,%d\n", dimX,dimY,dimZ,tick);
-    for (int z = 0; z < dimZ; z++) {
-        for (int y = 0; y < dimY; y++) {
-            for (int x = 0; x < dimX; x++) {
-                if (x == dimX - 1) {fprintf(fp, "%f", (universe+x+y+z)->currTemp);}
-                else {fprintf(fp, "%f,", (universe+x+y+z)->currTemp);}
-            }
-            fprintf(fp, "\n");
-        }
-    }
-    fprintf(fp, "\n");
-    for (int z = 0; z < dimZ; z++) {
-        for (int y = 0; y < dimY; y++) {
-            for (int x = 0; x < dimX; x++) {
-                if (x == dimX - 1) {fprintf(fp, "%f", (universe+x+y+z)->thermCond);}
-                else {fprintf(fp, "%f,", (universe+x+y+z)->thermCond);}
-            }
-            fprintf(fp, "\n");
-        }
-    }
+
+    MPI_File fp;
+    MPI_File_open(MPI_COMM_WORLD, "output.txt", MPI_MODE_WRONLY | MPI_MODE_CREATE, MPI_INFO_NULL, &fp);
+
+    MPI_Status status;
+
+    // printf("slice size %d myrank %d sizeof(double) %lu\n", sliceSize, myrank, sizeof(double));
+
+    // printf("%lu %d\n", sizeof(double)*sliceSize*myrank, myrank);
+
+    MPI_File_write_at_all(fp, sizeof(double)*sliceSize*myrank, universe, sizeof(double)*sliceSize, MPI_DOUBLE, &status);
+
+    // if (myrank == 0) {
+    //     FILE *fp;
+    //     fp = fopen("output.txt", "w+");
+    //     fprintf(fp, "%d,%d,%d,%d\n", dimX,dimY,dimZ,tick);
+    //     for (int z = 0; z < dimZ; z++) {
+    //         for (int y = 0; y < dimY; y++) {
+    //             for (int x = 0; x < dimX; x++) {
+    //                 if (x == dimX - 1) {fprintf(fp, "%f", (universe+x+y+z)->currTemp);}
+    //                 else {fprintf(fp, "%f,", (universe+x+y+z)->currTemp);}
+    //             }
+    //             fprintf(fp, "\n");
+    //         }
+    //     }
+    //     fprintf(fp, "\n");
+    //     for (int z = 0; z < dimZ; z++) {
+    //         for (int y = 0; y < dimY; y++) {
+    //             for (int x = 0; x < dimX; x++) {
+    //                 if (x == dimX - 1) {fprintf(fp, "%f", (universe+x+y+z)->thermCond);}
+    //                 else {fprintf(fp, "%f,", (universe+x+y+z)->thermCond);}
+    //             }
+    //             fprintf(fp, "\n");
+    //
+    //         }
+    //     }
+    // }
+
 }
 
 //allocates memory for next tick of universe
@@ -76,6 +92,7 @@ void initializeUniverse(char* filename){
     universe = (object*) calloc((size_t)dimX*dimY*(dimZ+2), sizeof(object));
     FILE *file;
     file = fopen(filename, "r");
+    int myZ = myrank * (dimZ/worldsize);
     if ( file != NULL )
     {
         char line[1024]; /* or other suitable maximum line size */
@@ -85,7 +102,7 @@ void initializeUniverse(char* filename){
                 continue;
             }
             int x1, y1, z1, x2, y2, z2;
-            float curTemp, thermCond;
+            double curTemp, thermCond;
             char* token = strtok(line, " ");
             x1 = atoi(token);
             token = strtok(NULL, " ");
@@ -103,9 +120,13 @@ void initializeUniverse(char* filename){
             token = strtok(NULL, " ");
             thermCond = atof(token);
 
+            if ((myZ+dimZ/worldsize) < z2) {
+                z2 = myZ+(dimZ/worldsize);
+            }
+
             for (int x = x1; x < x2; x++) {
                 for (int y = y1; y < y2; y++) {
-                    for (int z = z1; z < z2; z++) {
+                    for (int z = myZ; z < z2; z++) {
                         (universe+x+y+z)->currTemp = curTemp;
                         (universe+x+y+z)->thermCond = thermCond;
                     }
