@@ -136,6 +136,7 @@ void initializeUniverse(char* filename){
                     }
                 }
             }
+            printToConsole(-1);
         }
         fclose(file);
     }
