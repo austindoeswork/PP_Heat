@@ -210,6 +210,17 @@ int main(int argc, char* argv[]){
 
     //read in the initial universe state
     initializeUniverse(iniFilename);
+    for(int i = 0; i < dimX; i++){
+        for(int j = 0; j < dimY; j++){
+            for(int k = 1; k <= dimZ; k++){
+                printf("%lf ", universe);
+            }
+        }
+    }
+    /*universe = emptyUniverse();
+    for(int i = 0; i < dimX*dimY*(dimZ/worldsize+2); i++){
+
+    }*/
 
     //Prep MPI_time stuff
     double start_time, total_time;
