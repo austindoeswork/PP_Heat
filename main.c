@@ -1,6 +1,7 @@
-//
-// PP_Heat a 2D Parallel Heat Simulator
-//
+/*********************************************************/
+/* Parallel Heat Transfer Simulation in Three Dimensions */
+/*   by Aidan Wenzel, Austin Wilson, and Theodore Rice   */
+/*********************************************************/
 
 /*********************************************************/
 /* Includes **********************************************/
@@ -17,7 +18,7 @@
 /* Define Macros *****************************************/
 /*********************************************************/
 
-#define TICK 1 //length of time for a tick
+#define TICK 1
 #define cubeDim 1
 #define DIFFU 0.1
 
@@ -25,100 +26,63 @@
 /* Global Variable Definitions ***************************/
 /*********************************************************/
 
+// Defintion of our object which has a currTemp.
+// If needed, this struct could be enhanced to
+// include diffusivity, and other variables to
+// make it more accurate.
 typedef struct {
     double currTemp;
-    //double thermCond;
 } object;
 
+// The universe as it stands, and the next iteration
 object* universe;
 object* universeNext;
 
 MPI_Status status;
 
+// Global variables that show worldsize,
+// ranks around, ticks, slice size, and
+// dimenstions of the world
 int worldsize, myrank, aboveRank, belowRank;
 int numTicks, sliceSize, printOnTick;
-int dimX, dimY, dimZ; //Dimensions of board
+int dimX, dimY, dimZ;
 
 /*********************************************************/
 /* Function Definitions **********************************/
 /*********************************************************/
 void printToConsole(int tick);
 
+// Function that prints the current stage of the universe
+// when MPI Rank 0 reaches
 void printUniverse(int tick){
-    MPI_File fp;
-    MPI_File_open(MPI_COMM_WORLD, "output.txt", MPI_MODE_WRONLY | MPI_MODE_CREATE, MPI_INFO_NULL, &fp);
-
-    MPI_Status status;
-
-    // printf("slice size %d myrank %d sizeof(double) %lu\n", sliceSize, myrank, sizeof(double));
-
-    // printf("%lu %d\n", sizeof(double)*sliceSize*myrank, myrank);
-
-    MPI_File_write_at_all(fp, sizeof(double)*sliceSize*myrank, universe, sizeof(double)*sliceSize, MPI_DOUBLE, &status);
-
-    // if (myrank == 0) {
-    //     FILE *fp;
-    //     fp = fopen("output.txt", "w+");
-    //     fprintf(fp, "%d,%d,%d,%d\n", dimX,dimY,dimZ,tick);
-    //     for (int z = 0; z < dimZ; z++) {
-    //         for (int y = 0; y < dimY; y++) {
-    //             for (int x = 0; x < dimX; x++) {
-    //                 if (x == dimX - 1) {fprintf(fp, "%f", (universe+x+y+z)->currTemp);}
-    //                 else {fprintf(fp, "%f,", (universe+x+y+z)->currTemp);}
-    //             }
-    //             fprintf(fp, "\n");
-    //         }
-    //     }
-    //     fprintf(fp, "\n");
-    //     for (int z = 0; z < dimZ; z++) {
-    //         for (int y = 0; y < dimY; y++) {
-    //             for (int x = 0; x < dimX; x++) {
-    //                 if (x == dimX - 1) {fprintf(fp, "%f", (universe+x+y+z)->thermCond);}
-    //                 else {fprintf(fp, "%f,", (universe+x+y+z)->thermCond);}
-    //             }
-    //             fprintf(fp, "\n");
-    //
-    //         }
-    //     }
-    // }
-}
-
-//allocates memory for next tick of universe
-object* emptyUniverse(){
-    return calloc((size_t)dimX*dimY*((dimZ/worldsize)+2), sizeof(object));
-}
-
-void placeObjectInUniverse(int x1, int y1, int z1, int x2, int y2, int z2, double temp){
-    int localZStart = myrank * (dimZ/worldsize); //Ex rank 0 starts at Z = 0
-
-    if(z1 < localZStart) z1 = 0;
-    else z1 = z1 - localZStart;
-    if(z2 > localZStart + dimZ/worldsize - 1) z2 = dimZ/worldsize - 1;
-    else z2 = z2 - localZStart;
-
-    for (int x = x1; x <= x2; x++) {
-        for (int y = y1; y <= y2; y++) {
-            for (int z = z1; z < z2; z++) {
-                object *target = universe + (dimX*dimY*(z+1)) + (dimX * y) + x;
-                target->currTemp = temp;
-                //                     //(universe+x+y+z)->thermCond = thermCond;
+    if (myrank == 0) {
+        printf("%d,%d,%d,%d\n", dimX,dimY,dimZ,tick);
+        for (int z = 1; z < dimZ/worldsize; z++) {
+            for (int y = 0; y < dimY; y++) {
+                for (int x = 0; x < dimX; x++) {
+                    if (x == dimX - 1) {printf("%f", (universe + (dimX*dimY*(z+1)) + (dimX * y) + x)->currTemp);}
+                    else {printf("%f,", (universe + (dimX*dimY*(z+1)) + (dimX * y) + x)->currTemp);}
+                }
+                printf("\n");
             }
         }
     }
 }
 
-//initializes universe to ini file info
+// Allocates memory for next tick of universe
+object* emptyUniverse(){
+    return calloc((size_t)dimX*dimY*((dimZ/worldsize)+2), sizeof(object));
+}
+
+// Opens the initialization file and set objects initial heat
 void initializeUniverse(char* filename){
     universe = emptyUniverse();
     FILE *file;
     file = fopen(filename, "r");
-    int localZStart = myrank * (dimZ/worldsize); //Ex rank 0 starts at Z = 0
-    if ( file != NULL )
-    {
-        char line[1024]; /* or other suitable maximum line size */
-        while (fgets(line, sizeof(line), file) != NULL) /* read a line */
-        {
-            fprintf(stderr, "Loop starts\n");
+    int localZStart = myrank * (dimZ/worldsize);
+    if ( file != NULL ) {
+        char line[1024];
+        while (fgets(line, sizeof(line), file) != NULL) {
             if (line[0]=='/') {
                 continue;
             }
@@ -149,13 +113,11 @@ void initializeUniverse(char* filename){
             if(x2 >= dimX) x2 = dimX - 1;
             if(y2 >= dimY) y2 = dimY - 1;
 
-
             for (int x = x1; x <= x2; x++) {
                 for (int y = y1; y <= y2; y++) {
                     for (int z = z1; z <= z2; z++) {
                         object *target = universe + (dimX*dimY*(z+1)) + (dimX * y) + x;
                         target->currTemp = curTemp;
-    //                     //(universe+x+y+z)->thermCond = thermCond;
                     }
                 }
             }
@@ -164,7 +126,9 @@ void initializeUniverse(char* filename){
     }
 }
 
-// completes a tick on the universe
+// Completes a tick on the universe. This includes receiving and sending
+// information on ghost rows, and then applying the heat transfer formulas
+// to objects around the target.
 void tick(int tickNum){
     universeNext = emptyUniverse();
 
@@ -178,11 +142,13 @@ void tick(int tickNum){
     MPI_Wait(&receiveGhostFront, &status);
     MPI_Wait(&receiveGhostBack, &status);
 
-    //apply tick to universe
-    for(int z = 1; z <= dimZ/worldsize; z++){//only as much depth as this rank handles
+    // Apply tick to universe
+    for(int z = 1; z <= dimZ/worldsize; z++){
         for(int y = 0; y < dimY; y++){
             for(int x = 0; x < dimX; x++){
-                //obtain pointer information
+
+                // Obtain pointer information about the target, and the objects
+                // around the target.
                 object *target, *targetNext, *above, *below, *left, *right, *front, *back;
                 target = universe + (dimX*dimY*z) + (dimX * y) + x;
                 targetNext = universeNext + (dimX*dimY*z) + (dimX * y) + x;
@@ -194,7 +160,8 @@ void tick(int tickNum){
                 back = target + (dimX*dimY);
 
                 targetNext->currTemp = target->currTemp;
-                //handle edge cases
+
+                // Handle boundary edge cases.
                 if(x != 0) targetNext->currTemp += DIFFU * (left->currTemp - target->currTemp);
                 if(x != dimX-1) targetNext->currTemp += DIFFU * (right->currTemp - target->currTemp);
                 if(y != 0) targetNext->currTemp += DIFFU * (above->currTemp - target->currTemp);
@@ -206,11 +173,12 @@ void tick(int tickNum){
         }
     }
 
-    //update universe, free old memory
+    // Update the universe, and free old memory
     free(universe);
     universe = universeNext;
 }
 
+// Useful debugging function which prints every rank to console. Unused in main.
 void printToConsole(int tick){
     MPI_Barrier(MPI_COMM_WORLD);
     for(int printFromRank = 0; printFromRank < worldsize; printFromRank++) {
@@ -233,7 +201,8 @@ void printToConsole(int tick){
 /* Function Main *****************************************/
 /*********************************************************/
 int main(int argc, char* argv[]){
-    // start MPI
+
+    // Start MPI and calculate the side ranks
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &worldsize);
     MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
@@ -242,7 +211,7 @@ int main(int argc, char* argv[]){
     if(aboveRank < 0){aboveRank = worldsize - 1;}
     if(belowRank >= worldsize){belowRank = 0;}
 
-    //parse argv
+    // Parse arguments
     dimX = atoi(argv[1]);
     dimY = atoi(argv[2]);
     dimZ = atoi(argv[3]);
@@ -250,33 +219,25 @@ int main(int argc, char* argv[]){
     numTicks = atoi(argv[5]);
     printOnTick = atoi(argv[6]);
 
-    //compute other global vars
+    // Compute slice size
     sliceSize = dimX*dimY*(dimZ/worldsize);
 
-    //read in the initial universe state
-    //initializeUniverse(iniFilename);
+    // Read in the initial universe state
+    initializeUniverse(iniFilename);
 
-    universe = emptyUniverse();
-    //placeObjectInUniverse(0, 0, 0, 5000, 5000, 5000);
-   // for(int i = 0; i < dimX*dimY*(dimZ/worldsize+2); i++){
-   //     (universe+i)->currTemp = 0;
-   //  //    (universe+i)->thermCond = 1;
-   // }
-   // if(myrank == 1){(universe+13)->currTemp = 50;}
-
-    //Prep MPI_time stuff
+    // Prep MPI_time
     double start_time, total_time;
     MPI_Barrier(MPI_COMM_WORLD);
     if(myrank == 0) start_time = MPI_Wtime();
 
-    //Run simulation
-    //printToConsole(-1);
+    // Run simulation
+    printToConsole(-1);
     for(int tickCount = 0; tickCount < numTicks; tickCount++){
         tick(tickCount);
-        //if(tickCount%printOnTick == 0) printToConsole(tickCount);//printUniverse(tickCount);
+        if(tickCount%printOnTick == 0) printUniverse(tickCount);
     }
 
-    //Finish time and output info
+    // Finish time and output information
     MPI_Barrier(MPI_COMM_WORLD);
     if(myrank == 0){
         total_time = MPI_Wtime() - start_time;
