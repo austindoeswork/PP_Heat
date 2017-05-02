@@ -87,7 +87,7 @@ void initializeUniverse(char* filename){
                 continue;
             }
             int x1, y1, z1, x2, y2, z2;
-            double curTemp, thermCond;
+            double curTemp;
             char* token = strtok(line, " ");
             x1 = atoi(token);
             token = strtok(NULL, " ");
@@ -102,8 +102,6 @@ void initializeUniverse(char* filename){
             z2 = atoi(token);
             token = strtok(NULL, " ");
             curTemp = atof(token);
-            token = strtok(NULL, " ");
-            thermCond = atof(token);
 
             if(z1 < localZStart) z1 = 0;
             else z1 = z1 - localZStart;
