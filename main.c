@@ -85,7 +85,7 @@ void printUniverse(int tick){
 
 //allocates memory for next tick of universe
 object* emptyUniverse(){
-    return calloc((size_t)dimX*dimY*(dimZ+2), sizeof(object));
+    return calloc((size_t)dimX*dimY*((dimZ/worldsize)+2), sizeof(object));
 }
 
 void placeObjectInUniverse(int x1, int y1, int z1, int x2, int y2, int z2, double temp){
@@ -109,7 +109,7 @@ void placeObjectInUniverse(int x1, int y1, int z1, int x2, int y2, int z2, doubl
 
 //initializes universe to ini file info
 void initializeUniverse(char* filename){
-    universe = (object*) calloc((size_t)dimX*dimY*(dimZ+2), sizeof(object));
+    universe = emptyUniverse();
     FILE *file;
     file = fopen(filename, "r");
     int localZStart = myrank * (dimZ/worldsize); //Ex rank 0 starts at Z = 0
@@ -168,8 +168,6 @@ void initializeUniverse(char* filename){
 void tick(int tickNum){
     universeNext = emptyUniverse();
 
-    //printToConsole(tickNum);
-
     MPI_Request sendGhostBack, sendGhostFront, receiveGhostBack, receiveGhostFront;
     MPI_Isend(universe+(dimX*dimY), dimX*dimY, MPI_DOUBLE, belowRank, 0, MPI_COMM_WORLD, &sendGhostBack);
     MPI_Isend(universe+sliceSize, dimX*dimY, MPI_DOUBLE, aboveRank, 1, MPI_COMM_WORLD, &sendGhostFront);
@@ -179,8 +177,6 @@ void tick(int tickNum){
 
     MPI_Wait(&receiveGhostFront, &status);
     MPI_Wait(&receiveGhostBack, &status);
-
-    //printToConsole(tickNum);
 
     //apply tick to universe
     for(int z = 1; z <= dimZ/worldsize; z++){//only as much depth as this rank handles
@@ -284,7 +280,8 @@ int main(int argc, char* argv[]){
     MPI_Barrier(MPI_COMM_WORLD);
     if(myrank == 0){
         total_time = MPI_Wtime() - start_time;
-        printf("MPI world size: %d  Number of ticks: %d  Runtime: %lf\n", worldsize, numTicks, total_time);
+        printf("MPI world size: %d  Number of ticks: %d Size of Universe: %d  Runtime: %lf\n", worldsize, numTicks,
+               dimX * dimY * dimZ / worldsize, total_time);
     }
 
     //Finalize and exit

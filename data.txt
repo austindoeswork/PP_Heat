@@ -1,4 +1,4 @@
-Nodes   | Runtime D |
+Nodes   | Runtime D | Run Proper
 1       | 123.787   |
 2       | 113.936   |
 4       | 108.660   |
